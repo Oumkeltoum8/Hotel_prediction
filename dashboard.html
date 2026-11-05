@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyse des hôtels & prédiction des tarifs touristiques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#152436;
+    --ink-2:#1F3548;
+    --paper:#F1F1EC;
+    --paper-2:#E7E7DE;
+    --brass:#B8863B;
+    --brass-light:#D7AE68;
+    --teal:#1F6F6B;
+    --wine:#7A3042;
+    --ink-soft:#5B6670;
+    --line: rgba(21,36,54,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .display{font-family:'Fraunces', serif;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    background:linear-gradient(160deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:#EDEFEA;
+    padding:64px 8vw 88px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute;
+    right:-120px; top:-120px;
+    width:420px; height:420px;
+    border-radius:50%;
+    border:1px solid rgba(215,174,104,0.18);
+  }
+  .hero::before{
+    content:"";
+    position:absolute;
+    right:-40px; top:-40px;
+    width:280px; height:280px;
+    border-radius:50%;
+    border:1px solid rgba(215,174,104,0.14);
+  }
+  .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:0.16em;
+    font-size:12px;
+    color:var(--brass-light);
+    font-weight:600;
+    margin-bottom:18px;
+  }
+  .hero h1{
+    font-size:clamp(30px, 4.2vw, 52px);
+    font-weight:600;
+    line-height:1.08;
+    margin:0 0 18px;
+    max-width:820px;
+  }
+  .hero p.sub{
+    max-width:600px;
+    color:#C7CDD3;
+    font-size:16px;
+    line-height:1.6;
+    margin:0 0 40px;
+  }
+  .hero-stat{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .hero-stat .num{
+    font-family:'Fraunces', serif;
+    font-size:clamp(44px,6vw,72px);
+    font-weight:600;
+    color:var(--brass-light);
+  }
+  .hero-stat .lbl{
+    font-size:15px;
+    color:#C7CDD3;
+    max-width:260px;
+    line-height:1.4;
+  }
+
+  /* ---------- TICKET / KPI STRIP ---------- */
+  .ticket-strip{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:18px;
+    max-width:1180px;
+    margin:-52px auto 0;
+    padding:0 8vw;
+    position:relative;
+    z-index:2;
+  }
+  .ticket{
+    background:#FBFAF6;
+    border-radius:10px;
+    padding:20px 20px 16px;
+    box-shadow:0 18px 40px -18px rgba(21,36,54,0.35);
+    position:relative;
+    border:1px solid var(--line);
+  }
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    width:18px; height:18px;
+    background:var(--paper);
+    border-radius:50%;
+    top:50%;
+    transform:translateY(-50%);
+  }
+  .ticket::before{left:-9px;}
+  .ticket::after{right:-9px;}
+  .ticket .k-label{
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    font-size:11px;
+    color:var(--ink-soft);
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .ticket .k-value{
+    font-family:'Fraunces', serif;
+    font-size:28px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .ticket .k-value span{
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    color:var(--ink-soft);
+    font-weight:500;
+    margin-left:4px;
+  }
+  .ticket .barcode{
+    margin-top:14px;
+    height:14px;
+    background:repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 5px);
+    opacity:0.18;
+    border-top:1px dashed var(--line);
+    padding-top:6px;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  main{max-width:1180px; margin:0 auto; padding:96px 8vw 40px;}
+  section{margin-bottom:96px;}
+  section:last-child{margin-bottom:56px;}
+  .section-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:24px;
+    margin-bottom:28px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+  }
+  .section-head .tag{
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--brass);
+    font-weight:700;
+    margin-bottom:8px;
+    display:block;
+  }
+  .section-head h2{
+    font-family:'Fraunces', serif;
+    font-size:28px;
+    font-weight:600;
+    margin:0;
+    color:var(--ink);
+  }
+  .section-head .note{
+    color:var(--ink-soft);
+    font-size:14px;
+    max-width:320px;
+    text-align:right;
+    line-height:1.5;
+  }
+  .grid-2{display:grid; grid-template-columns:1.3fr 1fr; gap:32px;}
+  .grid-2b{display:grid; grid-template-columns:1fr 1fr; gap:32px;}
+  @media(max-width:860px){ .grid-2, .grid-2b{grid-template-columns:1fr;} }
+
+  .card{
+    background:#FBFAF6;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:24px 26px;
+  }
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .card p.desc{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin:0 0 18px;
+  }
+  .insight{
+    font-size:14px;
+    color:var(--ink);
+    background:var(--paper-2);
+    border-left:3px solid var(--brass);
+    padding:12px 16px;
+    border-radius:0 8px 8px 0;
+    margin-top:16px;
+    line-height:1.55;
+  }
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+    font-weight:600;
+  }
+  td{padding:10px 10px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono',monospace;}
+  td.city{font-family:'Inter',sans-serif; font-weight:500;}
+  tr.best td{color:var(--teal); font-weight:600;}
+  tr.worst td{color:var(--wine);}
+
+  .badge{
+    display:inline-block;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    font-weight:600;
+    margin-left:8px;
+  }
+  .badge.win{background:rgba(31,111,107,0.14); color:var(--teal);}
+
+  /* ---------- CLUSTER CARDS ---------- */
+  .cluster-row{display:grid; grid-template-columns:repeat(3,1fr); gap:24px;}
+  @media(max-width:860px){.cluster-row{grid-template-columns:1fr;}}
+  .cluster-card{
+    border-radius:14px;
+    padding:26px 24px;
+    color:#F1F1EC;
+    position:relative;
+    overflow:hidden;
+    min-height:220px;
+  }
+  .cluster-card .door{
+    position:absolute; right:16px; top:16px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    opacity:0.7;
+    border:1px solid rgba(255,255,255,0.35);
+    padding:2px 8px;
+    border-radius:20px;
+  }
+  .cluster-card h3{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    margin:6px 0 2px;
+  }
+  .cluster-card .cnt{font-size:12.5px; opacity:0.8; margin-bottom:20px;}
+  .cluster-card .stat-row{display:flex; justify-content:space-between; font-size:13.5px; padding:7px 0; border-top:1px solid rgba(255,255,255,0.18);}
+  .cluster-card .stat-row span:first-child{opacity:0.75;}
+  .cluster-card .stat-row span:last-child{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .c1{background:linear-gradient(155deg,#1F6F6B,#164F4C);}
+  .c2{background:linear-gradient(155deg,#2A4A63,#1B334A);}
+  .c3{background:linear-gradient(155deg,#7A3042,#571F2C);}
+
+  footer{
+    background:var(--ink);
+    color:#AAB2B8;
+    padding:40px 8vw;
+    font-size:13px;
+    line-height:1.7;
+  }
+  footer strong{color:#E7E7DE;}
+  footer .cols{display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; max-width:1180px; margin:0 auto;}
+  @media(max-width:860px){footer .cols{grid-template-columns:1fr; gap:20px;}}
+  footer h4{color:#E7E7DE; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 10px;}
+  .chart-wrap{position:relative; height:260px;}
+  .chart-wrap.tall{height:300px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">Rapport d'analyse · Tarifs hôteliers touristiques</div>
+  <h1>Ce que 4 867 hôtels révèlent sur la formation des prix.</h1>
+  <p class="sub">Données collectées par scraping sur Booking.com (122 villes, 6 régions du monde), nettoyées puis analysées pour comprendre, prédire et segmenter le marché hôtelier.</p>
+  <div class="hero-stat">
+    <div class="num">122</div>
+    <div class="lbl">villes représentées dans l'échantillon final, après nettoyage et filtrage des valeurs aberrantes.</div>
+  </div>
+</div>
+
+<div class="ticket-strip">
+  <div class="ticket">
+    <div class="k-label">Hôtels analysés</div>
+    <div class="k-value">4 867</div>
+    <div class="barcode"></div>
+  </div>
+  <div class="ticket">
+    <div class="k-label">Prix moyen / nuit</div>
+    <div class="k-value">146 <span>USD</span></div>
+    <div class="barcode"></div>
+  </div>
+  <div class="ticket">
+    <div class="k-label">Prix médian</div>
+    <div class="k-value">127 <span>USD</span></div>
+    <div class="barcode"></div>
+  </div>
+  <div class="ticket">
+    <div class="k-label">Note moyenne</div>
+    <div class="k-value">8.2 <span>/10</span></div>
+    <div class="barcode"></div>
+  </div>
+  <div class="ticket">
+    <div class="k-label">Meilleur modèle</div>
+    <div class="k-value">R² 0.66</div>
+    <div class="barcode"></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- DISTRIBUTION -->
+  <section>
+    <div class="section-head">
+      <div>
+        <span class="tag">Étape 1 — Analyse exploratoire</span>
+        <h2>Distribution des prix</h2>
+      </div>
+      <div class="note">4 867 hôtels retenus après nettoyage et filtrage des prix aberrants (méthode IQR, seuil Q3 + 1.5×IQR = 424 $).</div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Répartition des tarifs (USD)</h3>
+        <p class="desc">Histogramme des prix par nuit, de 3 $ à 424 $.</p>
+        <div class="chart-wrap"><canvas id="histChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Facteurs corrélés au prix</h3>
+        <p class="desc">Corrélation de Pearson avec le prix (variables numériques).</p>
+        <div class="chart-wrap"><canvas id="corrChart"></canvas></div>
+        <div class="insight">La note client (0.23) devient le facteur individuel le plus corrélé au prix, devant les étoiles (0.18). La distance au centre-ville, désormais normalisée dès la collecte (le scraper convertit les mètres en kilomètres à la source), confirme sa corrélation négative de -0.15 — les hôtels proches du centre restent plus chers, sans nécessiter de correction a posteriori cette fois.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VILLES -->
+  <section>
+    <div class="section-head">
+      <div>
+        <span class="tag">Étape 2 — Comparaison géographique</span>
+        <h2>Les villes les plus chères vs les plus abordables</h2>
+      </div>
+      <div class="note">Villes avec au moins 15 hôtels dans l'échantillon, prix moyen par nuit.</div>
+    </div>
+    <div class="grid-2b">
+      <div class="card">
+        <h3>Top 10 — Villes les plus chères</h3>
+        <div class="chart-wrap tall"><canvas id="expensiveChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Top 10 — Villes les plus abordables</h3>
+        <div class="chart-wrap tall"><canvas id="cheapChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODELES -->
+  <section>
+    <div class="section-head">
+      <div>
+        <span class="tag">Étape 3 — Modélisation prédictive</span>
+        <h2>Comparaison des modèles de régression</h2>
+      </div>
+      <div class="note">Entraînement sur 80% des données, évaluation sur les 20% restants (random_state=42).</div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Score R² par modèle</h3>
+        <p class="desc">Part de la variance du prix expliquée par chaque modèle.</p>
+        <div class="chart-wrap"><canvas id="modelChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Détail des métriques</h3>
+        <p class="desc">MAE et RMSE en dollars US.</p>
+        <table>
+          <tr><th>Modèle</th><th>MAE</th><th>RMSE</th><th>R²</th></tr>
+          <tr class="best"><td class="city">XGBoost<span class="badge win">meilleur</span></td><td>37.7</td><td>52.5</td><td>0.657</td></tr>
+          <tr><td class="city">Random Forest optimisé</td><td>38.2</td><td>52.7</td><td>0.654</td></tr>
+          <tr><td class="city">Random Forest</td><td>38.7</td><td>53.5</td><td>0.644</td></tr>
+          <tr><td class="city">Régression Linéaire</td><td>40.8</td><td>54.3</td><td>0.632</td></tr>
+          <tr class="worst"><td class="city">Gradient Boosting</td><td>45.7</td><td>59.3</td><td>0.562</td></tr>
+        </table>
+        <div class="insight">Changement notable par rapport à la version précédente du pipeline : XGBoost devance désormais la régression linéaire, qui dominait légèrement auparavant. L'ajout d'une variable région (en complément des 121 indicatrices de ville) et de plusieurs indicatrices d'équipements donne aux modèles à arbres des points de coupure plus informatifs. En valeur absolue, l'erreur type baisse d'environ 20% par rapport à la version précédente (MAE 37.7 $ contre 47.3 $).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLUSTERING -->
+  <section>
+    <div class="section-head">
+      <div>
+        <span class="tag">Étape 4 — Segmentation</span>
+        <h2>Positionnement des hôtels (K-Means, k=3)</h2>
+      </div>
+      <div class="note">Variables standardisées : prix, note client, classement en étoiles. Score de silhouette : 0.295.</div>
+    </div>
+    <div class="cluster-row">
+      <div class="cluster-card c1">
+        <div class="door">SEGMENT 01</div>
+        <h3>Économique</h3>
+        <div class="cnt">1 237 hôtels</div>
+        <div class="stat-row"><span>Prix moyen</span><span>99 $</span></div>
+        <div class="stat-row"><span>Note moyenne</span><span>7.1 / 10</span></div>
+        <div class="stat-row"><span>Étoiles moyennes</span><span>2.8 ★</span></div>
+      </div>
+      <div class="cluster-card c2">
+        <div class="door">SEGMENT 02</div>
+        <h3>Milieu de gamme</h3>
+        <div class="cnt">2 328 hôtels</div>
+        <div class="stat-row"><span>Prix moyen</span><span>101 $</span></div>
+        <div class="stat-row"><span>Note moyenne</span><span>8.5 / 10</span></div>
+        <div class="stat-row"><span>Étoiles moyennes</span><span>3.9 ★</span></div>
+      </div>
+      <div class="cluster-card c3">
+        <div class="door">SEGMENT 03</div>
+        <h3>Haut de gamme</h3>
+        <div class="cnt">1 302 hôtels</div>
+        <div class="stat-row"><span>Prix moyen</span><span>271 $</span></div>
+        <div class="stat-row"><span>Note moyenne</span><span>8.5 / 10</span></div>
+        <div class="stat-row"><span>Étoiles moyennes</span><span>3.9 ★</span></div>
+      </div>
+    </div>
+    <div class="insight" style="margin-top:20px;">Les segments « Économique » et « Milieu de gamme » ont cette fois des prix moyens presque identiques (99 $ contre 101 $) : ce qui les distingue réellement est la qualité perçue (note 7.1 contre 8.5, étoiles 2.8 contre 3.9), pas le prix. Le segment « Haut de gamme » partage la même note moyenne que le milieu de gamme (8.5) mais coûte 2.7× plus cher — un signe que d'autres facteurs que la qualité perçue (localisation, standing de la chaîne) séparent ces deux segments.</div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="cols">
+    <div>
+      <h4>Méthodologie</h4>
+      <p><strong>Source :</strong> scraping Playwright sur Booking.com (5 131 hôtels bruts, 122 villes, 6 régions). <strong>Nettoyage :</strong> suppression des doublons/valeurs manquantes, distance au centre normalisée en km dès la collecte, filtrage IQR sur le prix. <strong>Limites :</strong> plusieurs variables expérimentales (type d'établissement, remise, indicatrices wifi/parking/piscine/salle de sport) restent peu peuplées sur ce run ; le clustering n'intègre pas encore la dimension géographique ; dashboard basé sur un instantané des données, non connecté en temps réel.</p>
+    </div>
+    <div>
+      <h4>Outils</h4>
+      <p>Python · Playwright · Pandas · Scikit-learn · XGBoost</p>
+    </div>
+    <div>
+      <h4>Projet</h4>
+      <p>Analyse des hôtels & prédiction des tarifs touristiques</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+window.addEventListener('load', function(){
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart-wrap').forEach(function(el){
+      el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#7A3042;font-size:13px;text-align:center;padding:0 12px;">Impossible de charger Chart.js (bibliothèque de graphiques) — vérifie ta connexion internet, ou ouvre ce fichier directement dans un navigateur plutôt que dans un aperçu sans accès réseau.</div>';
+    });
+    return;
+  }
+  initCharts();
+});
+
+function initCharts(){
+const inkSoft = '#5B6670';
+const gridColor = 'rgba(21,36,54,0.08)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = inkSoft;
+Chart.defaults.font.size = 12;
+
+const histData = {"bins": [3,24,45,66,87,108,129,150,171,192,214,235,256,277,298,319,340,361,382,403,424], "counts": [189,428,395,493,516,468,406,363,302,257,214,169,120,137,91,85,78,69,57,30]};
+const histLabels = histData.counts.map((_,i)=>Math.round((histData.bins[i]+histData.bins[i+1])/2));
+
+new Chart(document.getElementById('histChart'), {
+  type:'bar',
+  data:{labels:histLabels, datasets:[{data:histData.counts, backgroundColor:'#B8863B', borderRadius:3, barPercentage:1, categoryPercentage:0.95}]},
+  options:{
+    plugins:{legend:{display:false}, tooltip:{callbacks:{title:(c)=>`≈ ${c[0].label} $`}}},
+    scales:{
+      x:{grid:{display:false}, ticks:{maxTicksLimit:8}, title:{display:true,text:'Prix (USD)',color:inkSoft,font:{size:11}}},
+      y:{grid:{color:gridColor}, title:{display:true,text:"Nombre d'hôtels",color:inkSoft,font:{size:11}}}
+    }
+  }
+});
+
+new Chart(document.getElementById('corrChart'), {
+  type:'bar',
+  data:{
+    labels:['Note client','Étoiles','Nb. avis','Distance centre'],
+    datasets:[{data:[0.225,0.179,0.179,-0.146], backgroundColor:['#1F6F6B','#1F6F6B','#B8863B','#7A3042'], borderRadius:4}]
+  },
+  options:{
+    indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{ x:{min:-0.2,max:0.35, grid:{color:gridColor}, title:{display:true,text:'Corrélation avec le prix',color:inkSoft,font:{size:11}}}, y:{grid:{display:false}} }
+  }
+});
+
+const expensive = [{"city":"Edinburgh","avg_price":324.5},{"city":"Copenhagen","avg_price":312.2},{"city":"Chicago","avg_price":297.8},{"city":"New York","avg_price":290.8},{"city":"Boston","avg_price":275.7},{"city":"London","avg_price":269.7},{"city":"Salzburg","avg_price":266.9},{"city":"Seattle","avg_price":264.1},{"city":"Montreal","avg_price":252.5},{"city":"Gold Coast","avg_price":250.0}];
+const cheap = [{"city":"Bengaluru","avg_price":27.3},{"city":"Hanoi","avg_price":38.3},{"city":"Phuket","avg_price":40.9},{"city":"Chiang Mai","avg_price":41.0},{"city":"Bogota","avg_price":41.1},{"city":"Quito","avg_price":44.9},{"city":"Lima","avg_price":52.9},{"city":"Jakarta","avg_price":53.1},{"city":"Ho Chi Minh City","avg_price":58.2},{"city":"Sao Paulo","avg_price":59.4}];
+
+new Chart(document.getElementById('expensiveChart'), {
+  type:'bar',
+  data:{labels:expensive.map(d=>d.city), datasets:[{data:expensive.map(d=>d.avg_price), backgroundColor:'#7A3042', borderRadius:4}]},
+  options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{color:gridColor}, title:{display:true,text:'Prix moyen (USD)',color:inkSoft,font:{size:11}}}, y:{grid:{display:false}}}}
+});
+new Chart(document.getElementById('cheapChart'), {
+  type:'bar',
+  data:{labels:cheap.map(d=>d.city), datasets:[{data:cheap.map(d=>d.avg_price), backgroundColor:'#1F6F6B', borderRadius:4}]},
+  options:{indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{color:gridColor}, title:{display:true,text:'Prix moyen (USD)',color:inkSoft,font:{size:11}}}, y:{grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('modelChart'), {
+  type:'bar',
+  data:{
+    labels:['XGBoost','Random Forest optimisé','Random Forest','Régression Linéaire','Gradient Boosting'],
+    datasets:[{data:[0.657,0.654,0.644,0.632,0.562], backgroundColor:['#B8863B','#1F6F6B','#2A4A63','#2A4A63','#7A3042'], borderRadius:4}]
+  },
+  options:{
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{display:false}, ticks:{autoSkip:false, maxRotation:20, minRotation:20}}, y:{min:0,max:0.75, grid:{color:gridColor}, title:{display:true,text:'R²',color:inkSoft,font:{size:11}}} }
+  }
+});
+} // fin initCharts
+</script>
+</body>
+</html>
